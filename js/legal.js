@@ -1,0 +1,135 @@
+'use strict';
+var Legal = (function () {
+  var TVA_FRANCHISE = 'TVA non applicable, art. 293 B du CGI';
+  var PENALITES = 'En cas de retard de paiement, des pénalités de retard sont exigibles au taux de trois fois le taux d’intérêt légal, ainsi qu’une indemnité forfaitaire de 40 € pour frais de recouvrement (articles L. 441-10 et D. 441-5 du Code de commerce).';
+  var ESCOMPTE = 'Pas d’escompte pour règlement anticipé.';
+
+  function date(iso) {
+    if (!iso) return '';
+    var p = String(iso).split('-');
+    return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : iso;
+  }
+  function plein(x) { return String(x == null ? '' : x).trim(); }
+  function siretOk(s) { return /^\d{14}$/.test(plein(s).replace(/\s/g, '')); }
+
+  function tvaMention(ent) {
+    if (ent.tvaStatut === 'franchise') return TVA_FRANCHISE;
+    return plein(ent.tvaNumero) ? 'N° de TVA intracommunautaire : ' + plein(ent.tvaNumero) : '';
+  }
+
+  function emetteurLignes(ent) {
+    var l = [];
+    var nom = plein(ent.nom);
+    if (plein(ent.forme)) nom += (nom ? ' — ' : '') + plein(ent.forme);
+    if (nom) l.push(nom);
+    if (plein(ent.adresse)) l.push(plein(ent.adresse));
+    var v = (plein(ent.cp) + ' ' + plein(ent.ville)).trim();
+    if (v) l.push(v);
+    if (plein(ent.siret)) l.push('SIRET : ' + plein(ent.siret));
+    var t = tvaMention(ent);
+    if (t && ent.tvaStatut !== 'franchise') l.push(t);
+    if (plein(ent.mentionRCS)) l.push(plein(ent.mentionRCS));
+    if (plein(ent.assurance)) l.push(plein(ent.assurance));
+    var c = [plein(ent.tel), plein(ent.email)].filter(Boolean).join(' · ');
+    if (c) l.push(c);
+    return l;
+  }
+
+  function clientLignes(c) {
+    if (!c) return [];
+    var l = [];
+    if (plein(c.nom)) l.push(plein(c.nom));
+    if (plein(c.contact)) l.push('À l’attention de ' + plein(c.contact));
+    if (plein(c.adresse)) l.push(plein(c.adresse));
+    var v = (plein(c.cp) + ' ' + plein(c.ville)).trim();
+    if (v) l.push(v);
+    if (plein(c.siret)) l.push('SIRET : ' + plein(c.siret));
+    if (plein(c.tvaNumero)) l.push('N° de TVA : ' + plein(c.tvaNumero));
+    return l;
+  }
+
+  function meta(doc) {
+    var m = [];
+    if (doc.type === 'devis') {
+      m.push({ label: 'Devis n°', valeur: doc.numero || 'Brouillon' });
+      m.push({ label: 'Date d’émission', valeur: date(doc.dateEmission) });
+      m.push({ label: 'Valable jusqu’au', valeur: date(doc.dateValidite) });
+    } else {
+      m.push({ label: 'Facture n°', valeur: doc.numero || 'Brouillon' });
+      m.push({ label: 'Date d’émission', valeur: date(doc.dateEmission) });
+      m.push({ label: 'Date de la prestation', valeur: date(doc.dateExecution || doc.dateEmission) });
+      m.push({ label: 'Échéance', valeur: date(doc.dateEcheance) });
+    }
+    return m;
+  }
+
+  // Lignes de conditions imprimées en bas du document.
+  function pied(doc, ent) {
+    var l = [];
+    var delai = ent.delaiPaiementJours || 30;
+    if (doc.type === 'devis') {
+      if (plein(doc.delaiExecution)) l.push('Délai d’exécution : ' + plein(doc.delaiExecution) + '.');
+      l.push('Devis valable jusqu’au ' + date(doc.dateValidite) + '.');
+      l.push('Règlement par virement bancaire sous ' + delai + ' jours à compter de la date de facture.');
+      if (ent.tvaStatut === 'franchise') l.push(TVA_FRANCHISE + '.');
+    } else {
+      l.push('Nature de l’opération : prestation de services.');
+      l.push('Échéance de règlement : ' + date(doc.dateEcheance) + (plein(doc.modePaiement) ? ' — ' + plein(doc.modePaiement) : ' — par virement bancaire') + '.');
+      l.push(PENALITES);
+      l.push(ESCOMPTE);
+      if (ent.tvaStatut === 'franchise') l.push(TVA_FRANCHISE + '.');
+    }
+    return l;
+  }
+
+  function signature(doc) {
+    return doc.type === 'devis'
+      ? 'Bon pour accord : date, signature et mention « Bon pour accord » du client.'
+      : '';
+  }
+
+  function paiementLignes(ent) {
+    var l = [];
+    if (plein(ent.iban)) l.push('IBAN : ' + plein(ent.iban));
+    if (plein(ent.bic)) l.push('BIC : ' + plein(ent.bic));
+    return l;
+  }
+
+  // Vérifie les informations obligatoires et renvoie des messages clairs.
+  function controles(doc, ent, client) {
+    var r = [];
+    function err(m) { r.push({ niveau: 'erreur', message: m }); }
+    function conseil(m) { r.push({ niveau: 'conseil', message: m }); }
+    var facture = doc.type === 'facture';
+
+    if (!plein(ent.nom)) err('Renseignez le nom de votre entreprise dans les Réglages.');
+    if (!plein(ent.adresse) || !plein(ent.ville)) err('Renseignez l’adresse de votre entreprise dans les Réglages.');
+    if (!plein(ent.siret)) { /* SIRET facultatif */ }
+    else if (!siretOk(ent.siret)) err('Votre numéro SIRET doit comporter 14 chiffres.');
+    if (ent.tvaStatut === 'assujetti' && !plein(ent.tvaNumero)) err('Indiquez votre numéro de TVA intracommunautaire dans les Réglages.');
+
+    if (!client) err('Choisissez un client.');
+    else {
+      if (!plein(client.adresse) || !plein(client.ville)) {
+        (facture ? err : conseil)('L’adresse de votre client est à renseigner' + (facture ? ' : elle est obligatoire sur une facture.' : '.'));
+      }
+      if (facture && !plein(client.siret)) conseil('Pour un client professionnel, indiquez son SIREN ou SIRET : cette mention est en cours de généralisation avec la facturation électronique.');
+    }
+
+    var lignes = (doc.lignes || []).filter(function (l) { return plein(l.description); });
+    if (!lignes.length) err('Ajoutez au moins une ligne de prestation avec une description.');
+    if (facture) {
+      if (!doc.dateExecution) err('Indiquez la date de réalisation de la prestation.');
+      if (!doc.dateEcheance) err('Indiquez la date d’échéance de paiement.');
+      if (!plein(ent.iban)) conseil('Ajoutez votre IBAN dans les Réglages pour être payé plus vite.');
+    } else if (!doc.dateValidite) err('Indiquez la durée de validité du devis.');
+    return r;
+  }
+
+  return {
+    TVA_FRANCHISE: TVA_FRANCHISE, PENALITES: PENALITES, ESCOMPTE: ESCOMPTE,
+    date: date, siretOk: siretOk, tvaMention: tvaMention, emetteurLignes: emetteurLignes,
+    clientLignes: clientLignes, meta: meta, pied: pied, signature: signature,
+    paiementLignes: paiementLignes, controles: controles
+  };
+})();

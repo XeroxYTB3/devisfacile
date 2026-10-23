@@ -1,0 +1,8 @@
+{
+  "ignore": [],
+  "autoGit": true,
+  "timeoutSeconds": 60,
+  "askBeforeWrite": false,
+  "verifySyntax": true,
+  "trustMode": true
+}

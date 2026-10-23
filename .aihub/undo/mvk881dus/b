@@ -1,0 +1,131 @@
+'use strict';
+window.Views = window.Views || {};
+Views.dashboard = function () {
+  var h = UI.h, eur = UI.eur;
+  var ent = Store.entreprise();
+  var auj = Calc.aujourdhui(), an = auj.slice(0, 4), mois = auj.slice(0, 7);
+  var seuilRelance = Calc.ajouterJours(auj, -7);
+  var enc = 0, att = 0, ret = 0, devis = 0, caMois = 0;
+  var nbAtt = 0, nbRet = 0, nbDevis = 0;
+  var enRetard = [], aRelancer = [], echeances = [];
+
+  Store.documents().forEach(function (d) {
+    if (!d.numero) return;
+    var t = Calc.totaux(d, ent);
+    var st = Calc.statutAffiche(d, auj);
+    if (d.type === 'facture') {
+      if (d.statut === 'payée') {
+        var dp = d.datePaiement || d.dateEmission;
+        if (dp.slice(0, 4) === an) enc += t.totalTTC;
+        if (dp.slice(0, 7) === mois) caMois += t.totalTTC;
+      } else if (d.statut === 'envoyée') {
+        if (d.dateEmission.slice(0, 4) === an) enc += t.acompte;
+        if (st === 'en retard') { ret += t.netAPayer; nbRet++; enRetard.push({ d: d, t: t }); }
+        else { att += t.netAPayer; nbAtt++; echeances.push({ d: d, t: t }); }
+      }
+    } else if (st === 'envoyé' || st === 'accepté') {
+      devis += t.totalTTC; nbDevis++;
+      if (st === 'envoyé' && (d.dateEnvoi || d.dateEmission) <= seuilRelance) aRelancer.push({ d: d, t: t });
+    }
+  });
+  enRetard.sort(function (a, b) { return a.d.dateEcheance < b.d.dateEcheance ? -1 : 1; });
+  echeances.sort(function (a, b) { return a.d.dateEcheance < b.d.dateEcheance ? -1 : 1; });
+
+  function plur(n, mot) { return n + ' ' + mot + (n > 1 ? 's' : ''); }
+  function nomClient(d) { var c = Store.client(d.clientId); return c ? c.nom : '—'; }
+  function appel(d) { var c = Store.client(d.clientId); return c ? (c.contact || c.nom) : ''; }
+
+  function relanceFacture(d, t) {
+    var n = appel(d);
+    return 'Bonjour' + (n ? ' ' + n : '') + ',\n\nSauf erreur de ma part, la facture ' + d.numero + ' d’un montant de ' + eur(t.netAPayer) +
+      ', arrivée à échéance le ' + UI.date(d.dateEcheance) + ', n’a pas encore été réglée.\n\nPourriez-vous me confirmer sa prise en charge ou me communiquer la date de paiement prévue ?' +
+      (ent.iban ? '\n\nPour rappel, mes coordonnées bancaires : IBAN ' + ent.iban + '.' : '') +
+      '\n\nJe vous remercie par avance.\n\nBien cordialement,\n' + (ent.nom || '');
+  }
+  function relanceDevis(d, t) {
+    var n = appel(d);
+    return 'Bonjour' + (n ? ' ' + n : '') + ',\n\nJe me permets de revenir vers vous au sujet du devis ' + d.numero + ' du ' + UI.date(d.dateEmission) + ', d’un montant de ' + eur(t.totalTTC) +
+      '.\n\nAvez-vous eu l’occasion d’en prendre connaissance ? Je reste disponible pour en discuter ou l’ajuster si besoin.\n\nBien cordialement,\n' + (ent.nom || '');
+  }
+
+  function rangee(x, texteDroite, bouton) {
+    var d = x.d;
+    return h('div', { class: 'rangee' },
+      h('div', { class: 'g' },
+        h('a', { href: '#/apercu/' + encodeURIComponent(d.id) }, d.numero), ' · ', nomClient(d),
+        h('div', { class: 'doux' }, d.objet || '')),
+      h('div', { style: 'text-align:right;flex:none' },
+        h('div', { class: 'gras mono' }, eur(x.t.type === undefined ? (d.type === 'facture' ? x.t.netAPayer : x.t.totalTTC) : 0)),
+        texteDroite ? h('div', { class: 'doux' }, texteDroite) : null,
+        bouton || null));
+  }
+  function boutonCopier(txt) {
+    return h('button', { class: 'btn btn-petit', type: 'button', style: 'margin-top:4px', onclick: function () { UI.copier(txt); } }, 'Copier le message de relance');
+  }
+
+  function kpi(cls, lib, val, sous, lien) {
+    return h('a', { class: 'kpi ' + cls, href: lien }, h('div', { class: 'lib' }, lib), h('div', { class: 'val' }, val), h('div', { class: 'doux' }, sous));
+  }
+
+  var blocs = [];
+
+  if (!ent.nom || !ent.siret) {
+    blocs.push(h('div', { class: 'alerte alerte-conseil' }, 'Pour que vos documents soient complets, renseignez d’abord les informations de votre entreprise : ',
+      h('a', { href: '#/reglages' }, 'ouvrir les Réglages'), '.'));
+  }
+
+  blocs.push(h('div', { class: 'grille-kpi' },
+    kpi('ok', 'Encaissé en ' + an, eur(enc), 'Factures réglées et acomptes reçus', '#/documents?type=facture&statut=payee'),
+    kpi('', 'En attente de paiement', eur(att), plur(nbAtt, 'facture') + ' dans les délais', '#/documents?type=facture&statut=envoye'),
+    kpi(ret > 0 ? 'err' : '', 'En retard', eur(ret), plur(nbRet, 'facture') + ' à relancer', '#/documents?type=facture&statut=retard'),
+    kpi('', 'Devis en cours', eur(devis), plur(nbDevis, 'devis') + ' envoyé' + (nbDevis > 1 ? 's' : '') + ' ou accepté' + (nbDevis > 1 ? 's' : ''), '#/documents?type=devis')));
+
+  blocs.push(h('p', { class: 'doux', style: 'margin:-4px 0 16px' }, 'Réglé ce mois-ci : ', h('strong', null, eur(caMois)), '.'));
+
+  if (ent.tvaStatut === 'franchise' && Calc.num(ent.plafondCA) > 0) {
+    var plafond = Calc.versCentimes(ent.plafondCA);
+    var pct = Math.min(100, Math.round(enc / plafond * 100));
+    blocs.push(h('div', { class: 'carte' },
+      h('h3', null, 'Votre plafond de micro-entreprise'),
+      h('div', { class: 'progres' + (pct >= 80 ? ' alerte-seuil' : '') }, h('span', { style: 'width:' + pct + '%' })),
+      h('p', { class: 'doux', style: 'margin:8px 0 0' }, 'Vous avez encaissé ' + eur(enc) + ' sur un seuil de ' + eur(plafond) + ' (' + pct + ' %). Seuil indicatif, modifiable dans les Réglages : vérifiez-le auprès de l’administration.')));
+  }
+
+  var cols = [];
+  cols.push(h('div', { class: 'carte' },
+    h('h3', null, 'Factures en retard'),
+    enRetard.length
+      ? enRetard.map(function (x) { return rangee(x, 'échue le ' + UI.date(x.d.dateEcheance), boutonCopier(relanceFacture(x.d, x.t))); })
+      : h('p', { class: 'doux' }, 'Aucune facture en retard. Bravo !')));
+  cols.push(h('div', { class: 'carte' },
+    h('h3', null, 'Prochaines échéances'),
+    echeances.length
+      ? echeances.slice(0, 5).map(function (x) { return rangee(x, 'avant le ' + UI.date(x.d.dateEcheance)); })
+      : h('p', { class: 'doux' }, 'Aucune facture en attente de paiement.')));
+  if (aRelancer.length) {
+    cols.push(h('div', { class: 'carte' },
+      h('h3', null, 'Devis sans réponse depuis plus de 7 jours'),
+      aRelancer.map(function (x) { return rangee(x, 'envoyé le ' + UI.date(x.d.dateEnvoi || x.d.dateEmission), boutonCopier(relanceDevis(x.d, x.t))); })));
+  }
+  var recents = Store.documentsTries().slice(0, 6);
+  cols.push(h('div', { class: 'carte' },
+    h('h3', null, 'Derniers documents'),
+    recents.length
+      ? recents.map(function (d) {
+          var t = Calc.totaux(d, ent);
+          return h('div', { class: 'rangee' },
+            h('div', { class: 'g' }, h('a', { href: '#/document/' + encodeURIComponent(d.id) }, d.numero || 'Brouillon'), ' · ', nomClient(d), h('div', { class: 'doux' }, d.objet || '')),
+            h('div', { style: 'text-align:right;flex:none' }, h('div', { class: 'gras mono' }, eur(t.totalTTC)), UI.pastille(Calc.statutAffiche(d, auj))));
+        })
+      : UI.vide('Rien pour l’instant', 'Vos documents apparaîtront ici.',
+          h('button', { class: 'btn btn-primaire', type: 'button', onclick: function () { App.nouveauDevis(); } }, '+ Nouveau devis'))));
+  blocs.push(h('div', { class: 'deux-col' }, cols));
+
+  return h('div', null,
+    h('div', { class: 'barre' },
+      h('div', null, h('h1', null, 'Tableau de bord'), h('div', { class: 'doux' }, 'Ce qui compte, en un coup d’œil.')),
+      h('div', { class: 'actions' },
+        h('a', { class: 'btn', href: '#/clients' }, 'Mes clients'),
+        h('button', { class: 'btn btn-primaire', type: 'button', onclick: function () { App.nouveauDevis(); } }, '+ Nouveau devis'))),
+    blocs);
+};

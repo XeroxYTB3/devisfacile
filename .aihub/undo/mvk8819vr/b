@@ -1,0 +1,254 @@
+'use strict';
+var Store = (function () {
+  var KEY = 'devisfacile.v1';
+  var state = null;
+  var memoire = null;
+  var persistant = true;
+
+  function lire() { try { return window.localStorage.getItem(KEY); } catch (e) { persistant = false; return memoire; } }
+  function ecrire(txt) {
+    try { window.localStorage.setItem(KEY, txt); persistant = true; }
+    catch (e) { memoire = txt; persistant = false; }
+  }
+
+  function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+
+  function entrepriseVierge() {
+    return {
+      nom: '', forme: '', adresse: '', cp: '', ville: '', siret: '', email: '', tel: '', logo: '',
+      tvaStatut: 'franchise', tvaNumero: '', iban: '', bic: '',
+      delaiPaiementJours: 30, validiteDevisJours: 30, tauxTvaDefaut: 20,
+      mentionRCS: '', assurance: '', plafondCA: 77700
+    };
+  }
+
+  function vierge() {
+    return { version: 1, entreprise: entrepriseVierge(), clients: [], documents: [], catalogue: [], compteurs: { devis: {}, facture: {} } };
+  }
+
+  function normaliser(s) {
+    var v = vierge();
+    s = s && typeof s === 'object' ? s : {};
+    var out = Object.assign({}, v, s);
+    out.entreprise = Object.assign(entrepriseVierge(), s.entreprise || {});
+    out.clients = Array.isArray(s.clients) ? s.clients : [];
+    out.documents = Array.isArray(s.documents) ? s.documents : [];
+    out.catalogue = Array.isArray(s.catalogue) ? s.catalogue : [];
+    out.compteurs = s.compteurs || {};
+    out.compteurs.devis = out.compteurs.devis || {};
+    out.compteurs.facture = out.compteurs.facture || {};
+    out.documents.forEach(function (d) { if (!Array.isArray(d.lignes)) d.lignes = []; });
+    return out;
+  }
+
+  function save() { ecrire(JSON.stringify(state)); }
+
+  function load() {
+    var txt = lire();
+    var parsed = null;
+    if (txt) { try { parsed = JSON.parse(txt); } catch (e) { parsed = null; } }
+    if (parsed) state = normaliser(parsed);
+    else state = normaliser(typeof Demo !== 'undefined' ? Demo.creer() : vierge());
+    nettoyerBrouillonsVides();
+    save();
+    return state;
+  }
+
+  function etat() { return state; }
+  function entreprise() { return state.entreprise; }
+  function sauverEntreprise(e) { state.entreprise = Object.assign(entrepriseVierge(), e); save(); }
+
+  // ---- Clients
+  function clients() { return state.clients.slice().sort(function (a, b) { return String(a.nom).localeCompare(String(b.nom), 'fr'); }); }
+  function client(id) { return state.clients.filter(function (c) { return c.id === id; })[0] || null; }
+  function sauverClient(c) {
+    if (!c.id) c.id = uid();
+    var i = state.clients.findIndex(function (x) { return x.id === c.id; });
+    if (i >= 0) state.clients[i] = c; else state.clients.push(c);
+    save();
+    return c;
+  }
+  function supprimerClient(id) {
+    if (state.documents.some(function (d) { return d.clientId === id; })) {
+      return { ok: false, message: 'Ce client est lié à des documents : vous ne pouvez pas le supprimer.' };
+    }
+    state.clients = state.clients.filter(function (c) { return c.id !== id; });
+    save();
+    return { ok: true };
+  }
+
+  // ---- Catalogue de prestations
+  function catalogue() { return state.catalogue.slice(); }
+  function sauverPrestation(p) {
+    if (!p.id) p.id = uid();
+    var i = state.catalogue.findIndex(function (x) { return x.id === p.id; });
+    if (i >= 0) state.catalogue[i] = p; else state.catalogue.push(p);
+    save();
+    return p;
+  }
+  function supprimerPrestation(id) { state.catalogue = state.catalogue.filter(function (p) { return p.id !== id; }); save(); }
+
+  // ---- Documents
+  function ligneVide() {
+    var e = state.entreprise;
+    return { id: uid(), description: '', qte: 1, unite: '', puHT: 0, remisePct: 0, tva: e.tvaStatut === 'franchise' ? 0 : e.tauxTvaDefaut };
+  }
+  function documents() { return state.documents.slice(); }
+  function documentsTries() {
+    return state.documents.slice().sort(function (a, b) {
+      if (a.dateEmission !== b.dateEmission) return a.dateEmission < b.dateEmission ? 1 : -1;
+      return String(b.creeLe).localeCompare(String(a.creeLe));
+    });
+  }
+  function doc(id) { return state.documents.filter(function (d) { return d.id === id; })[0] || null; }
+
+  function nouveauDocument(type, clientId) {
+    var e = state.entreprise, t = Calc.aujourdhui();
+    var d = {
+      id: uid(), type: type, numero: '', statut: 'brouillon', clientId: clientId || '',
+      dateEmission: t, objet: '', lignes: [ligneVide()], remiseGlobalePct: 0,
+      acomptePct: null, acompteMontant: null, notes: '', delaiExecution: '', creeLe: new Date().toISOString()
+    };
+    if (type === 'devis') d.dateValidite = Calc.ajouterJours(t, e.validiteDevisJours || 30);
+    else { d.dateEcheance = Calc.ajouterJours(t, e.delaiPaiementJours || 30); d.dateExecution = t; d.lieDevisId = ''; d.modePaiement = ''; }
+    state.documents.push(d);
+    save();
+    return d;
+  }
+
+  function sauverDocument(d) {
+    var i = state.documents.findIndex(function (x) { return x.id === d.id; });
+    if (i >= 0) state.documents[i] = d; else state.documents.push(d);
+    save();
+    return d;
+  }
+
+  function attribuerNumero(d) {
+    if (d.numero) return d.numero;
+    var an = String((d.dateEmission || Calc.aujourdhui()).slice(0, 4));
+    var c = state.compteurs[d.type];
+    c[an] = (c[an] || 0) + 1;
+    d.numero = Calc.numero(d.type, an, c[an]);
+    return d.numero;
+  }
+
+  var STATUTS = {
+    devis: ['brouillon', 'envoyé', 'accepté', 'refusé', 'facturé'],
+    facture: ['brouillon', 'envoyée', 'payée']
+  };
+
+  function changerStatut(id, statut) {
+    var d = doc(id);
+    if (!d) return { ok: false, message: 'Document introuvable.' };
+    if (statut === 'en retard') statut = 'envoyée';
+    if (statut === 'expiré') statut = 'envoyé';
+    if (STATUTS[d.type].indexOf(statut) < 0) return { ok: false, message: 'Statut non valable pour ce document.' };
+    if (d.statut === statut) return { ok: true };
+    if (statut === 'brouillon' && d.numero) {
+      return { ok: false, message: 'Un document numéroté ne peut plus redevenir brouillon : cela garantit une numérotation sans trou.' };
+    }
+    if (d.statut === 'brouillon') {
+      if (!d.clientId || !client(d.clientId)) return { ok: false, message: 'Choisissez d’abord un client.' };
+      var utiles = d.lignes.filter(function (l) { return String(l.description || '').trim(); });
+      if (!utiles.length) return { ok: false, message: 'Ajoutez au moins une ligne de prestation.' };
+      d.lignes = utiles;
+      attribuerNumero(d);
+    }
+    d.statut = statut;
+    var t = Calc.aujourdhui();
+    if ((statut === 'envoyé' || statut === 'envoyée') && !d.dateEnvoi) d.dateEnvoi = t;
+    if (statut === 'payée') { if (!d.datePaiement) d.datePaiement = t; }
+    else if (d.datePaiement) d.datePaiement = '';
+    save();
+    return { ok: true };
+  }
+
+  function convertirEnFacture(devisId) {
+    var d = doc(devisId);
+    if (!d || d.type !== 'devis') return { ok: false, message: 'Devis introuvable.' };
+    if (d.factureId && doc(d.factureId)) return { ok: true, facture: doc(d.factureId), existant: true };
+    if (d.statut !== 'accepté') return { ok: false, message: 'Seul un devis accepté peut être transformé en facture.' };
+    var f = nouveauDocument('facture', d.clientId);
+    f.objet = d.objet;
+    f.lignes = d.lignes.map(function (l) { return Object.assign({}, l, { id: uid() }); });
+    f.remiseGlobalePct = d.remiseGlobalePct;
+    f.acomptePct = d.acomptePct;
+    f.acompteMontant = d.acompteMontant;
+    f.notes = d.notes;
+    f.lieDevisId = d.id;
+    f.dateEmission = Calc.aujourdhui();
+    f.dateExecution = Calc.aujourdhui();
+    f.dateEcheance = Calc.ajouterJours(f.dateEmission, state.entreprise.delaiPaiementJours || 30);
+    attribuerNumero(f);
+    f.statut = 'envoyée';
+    d.statut = 'facturé';
+    d.factureId = f.id;
+    save();
+    return { ok: true, facture: f };
+  }
+
+  function dupliquer(id) {
+    var d = doc(id);
+    if (!d) return null;
+    var c = nouveauDocument(d.type, d.clientId);
+    c.objet = d.objet;
+    c.lignes = d.lignes.map(function (l) { return Object.assign({}, l, { id: uid() }); });
+    c.remiseGlobalePct = d.remiseGlobalePct;
+    c.acomptePct = d.acomptePct;
+    c.acompteMontant = d.acompteMontant;
+    c.notes = d.notes;
+    c.delaiExecution = d.delaiExecution || '';
+    save();
+    return c;
+  }
+
+  function supprimerDocument(id) {
+    var d = doc(id);
+    if (!d) return { ok: false, message: 'Document introuvable.' };
+    if (d.numero || d.statut !== 'brouillon') {
+      return { ok: false, message: 'Seuls les brouillons non numérotés peuvent être supprimés, afin de garder une numérotation sans trou.' };
+    }
+    state.documents = state.documents.filter(function (x) { return x.id !== id; });
+    save();
+    return { ok: true };
+  }
+
+  function nettoyerBrouillonsVides() {
+    state.documents = state.documents.filter(function (d) {
+      if (d.numero || d.statut !== 'brouillon') return true;
+      var vide = !d.clientId && !String(d.objet || '').trim() &&
+        d.lignes.every(function (l) { return !String(l.description || '').trim() && !(Number(l.puHT) > 0); });
+      return !vide;
+    });
+  }
+
+  // ---- Sauvegarde / restauration
+  function exporter() { return JSON.stringify(state, null, 2); }
+  function importer(texte) {
+    var o;
+    try { o = JSON.parse(texte); } catch (e) { return { ok: false, message: 'Ce fichier n’est pas une sauvegarde valable.' }; }
+    if (!o || typeof o !== 'object' || !Array.isArray(o.documents) || !Array.isArray(o.clients) || !o.entreprise) {
+      return { ok: false, message: 'Ce fichier ne ressemble pas à une sauvegarde DevisFacile.' };
+    }
+    state = normaliser(o);
+    save();
+    return { ok: true };
+  }
+  function reinitialiserDemo() {
+    state = normaliser(typeof Demo !== 'undefined' ? Demo.creer() : vierge());
+    save();
+  }
+  function toutEffacer() { state = vierge(); save(); }
+
+  return {
+    load: load, save: save, etat: etat, uid: uid, estPersistant: function () { return persistant; },
+    entreprise: entreprise, sauverEntreprise: sauverEntreprise, entrepriseVierge: entrepriseVierge,
+    clients: clients, client: client, sauverClient: sauverClient, supprimerClient: supprimerClient,
+    catalogue: catalogue, sauverPrestation: sauverPrestation, supprimerPrestation: supprimerPrestation,
+    ligneVide: ligneVide, documents: documents, documentsTries: documentsTries, doc: doc,
+    nouveauDocument: nouveauDocument, sauverDocument: sauverDocument, changerStatut: changerStatut,
+    convertirEnFacture: convertirEnFacture, dupliquer: dupliquer, supprimerDocument: supprimerDocument,
+    nettoyerBrouillonsVides: nettoyerBrouillonsVides, STATUTS: STATUTS,
+    exporter: exporter, importer: importer, reinitialiserDemo: reinitialiserDemo, toutEffacer: toutEffacer
+  };
+})();

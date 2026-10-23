@@ -1,0 +1,240 @@
+2026-10-22 23:31:21 ok task list (0)
+2026-10-22 23:32:15 ok write PLAN.md (79 lignes, nouveau)
+2026-10-22 23:32:15 ok task add (18 tâches)
+2026-10-22 23:32:15 ok task list (18)
+2026-10-22 23:32:15 ok build (rien à construire)
+2026-10-22 23:32:15 ok task list (18)
+2026-10-22 23:35:46 ok task start 1
+2026-10-22 23:35:46 ok write index.html (43 lignes, nouveau)
+2026-10-22 23:35:46 ok write css/app.css (104 lignes, nouveau) · vérif ✔
+2026-10-22 23:35:46 ok task done 1
+2026-10-22 23:35:46 ok build (rien à construire)
+2026-10-22 23:35:46 ok task start 2
+2026-10-22 23:35:46 ok write js/calc.js (117 lignes, nouveau) · vérif ✔
+2026-10-22 23:35:46 ok write tests/calc.test.js (88 lignes, nouveau) · vérif ✔
+2026-10-22 23:35:47 ok run node tests/calc.test.js (code 0, 0,4 s)
+2026-10-22 23:35:47 ok task done 2
+2026-10-22 23:35:47 ok build (rien à construire)
+2026-10-22 23:35:47 ok task start 3
+2026-10-22 23:35:47 ok write js/store.js (254 lignes, nouveau) · vérif ✔
+2026-10-22 23:35:47 ok task done 3
+2026-10-22 23:35:47 ok build (rien à construire)
+2026-10-22 23:35:47 ok task start 4
+2026-10-22 23:35:47 ok write js/legal.js (135 lignes, nouveau) · vérif ✔
+2026-10-22 23:35:47 ok task done 4
+2026-10-22 23:35:47 ok build (rien à construire)
+2026-10-22 23:35:47 ok task start 5
+2026-10-22 23:35:47 ok write js/ui.js (141 lignes, nouveau) · vérif ✔
+2026-10-22 23:35:47 ok task done 5
+2026-10-22 23:35:47 ok build (rien à construire)
+2026-10-22 23:35:48 ok task list (18)
+2026-10-22 23:39:01 ok task list (18)
+2026-10-22 23:39:01 ok task list (18)
+2026-10-22 23:42:39 ok task start 6
+2026-10-22 23:42:39 ok task list (18)
+2026-10-22 23:43:15 ok write js/app.js (129 lignes, nouveau) · vérif ✔
+2026-10-22 23:43:15 ok run node --check js/app.js (code 0, 0,2 s)
+2026-10-22 23:43:15 ok task done 6
+2026-10-22 23:43:15 ok build (rien à construire)
+2026-10-22 23:43:15 ok task list (18)
+2026-10-22 23:45:37 ok task start 7
+2026-10-22 23:45:37 ok task list (18)
+2026-10-22 23:45:52 ok task list (18)
+2026-10-22 23:46:05 ok task list (18)
+2026-10-22 23:48:16 ok write js/views/settings.js (220 lignes, nouveau) · vérif ✔
+2026-10-22 23:48:16 ok write js/views/clients.js (135 lignes, nouveau) · vérif ✔
+2026-10-22 23:48:16 ok run node --check js/views/settings.js && node --check js/views/clients.js (code 0, 0,3 s)
+2026-10-22 23:48:16 ok task done 7
+2026-10-22 23:48:16 ok build (rien à construire)
+2026-10-22 23:48:16 ok task done 8
+2026-10-22 23:48:16 ok build (rien à construire)
+2026-10-22 23:48:16 ok task next
+2026-10-22 23:48:17 ok task list (18)
+2026-10-22 23:51:33 ok task list (18)
+2026-10-22 23:52:52 ok task next
+2026-10-22 23:52:52 ok task list (18)
+2026-10-22 23:53:08 ok task list (18)
+2026-10-22 23:56:33 ok task list (18)
+2026-10-22 23:56:50 ok task list (18)
+2026-10-22 23:58:16 ok task start 9
+2026-10-22 23:58:16 ok write js/views/editor.js (154 lignes, nouveau) · vérif ✔
+2026-10-22 23:58:16 ok run node --check js/views/editor.js (code 0, 0,2 s)
+2026-10-22 23:58:16 err grep function controles js/legal.js -A4 : ENOENT: no such file or directory, stat 'E:\Téléchargements\Main Folder\controles'
+2026-10-22 23:58:16 err grep function meta js/legal.js -A3 : ENOENT: no such file or directory, stat 'E:\Téléchargements\Main Folder\meta'
+2026-10-22 23:58:17 ok task list (18)
+2026-10-22 23:58:58 ok task done 9
+2026-10-22 23:58:58 ok build (rien à construire)
+2026-10-22 23:58:58 ok task start 10
+2026-10-22 23:58:58 ok task list (18)
+2026-10-22 23:59:19 ok task list (18)
+2026-10-23 00:01:36 ok task list (18)
+2026-10-23 00:02:23 ok edit js/views/editor.js (2 modifications) · vérif ✔
+2026-10-23 00:02:23 ok run node --check js/views/editor.js (code 0, 0,2 s)
+2026-10-23 00:02:23 ok task done 10
+2026-10-23 00:02:23 ok build (rien à construire)
+2026-10-23 00:02:23 ok task next
+2026-10-23 00:02:24 ok task list (18)
+2026-10-23 00:03:19 ok task start 15
+2026-10-23 00:03:19 ok write js/demo.js (106 lignes, nouveau) · vérif ✔
+2026-10-23 00:03:19 ok run node --check js/demo.js (code 0, 0,2 s)
+2026-10-23 00:03:19 ok task done 15
+2026-10-23 00:03:19 ok build (rien à construire)
+2026-10-23 00:03:20 ok task list (18)
+2026-10-23 00:06:30 ok task start 11
+2026-10-23 00:06:30 ok write js/views/documents.js (133 lignes, nouveau) · vérif ✔
+2026-10-23 00:06:30 ok task done 11
+2026-10-23 00:06:30 ok build (rien à construire)
+2026-10-23 00:06:30 ok task start 12
+2026-10-23 00:06:30 ok task done 12
+2026-10-23 00:06:30 ok build (rien à construire)
+2026-10-23 00:06:30 ok task start 13
+2026-10-23 00:06:30 ok write js/views/preview.js (134 lignes, nouveau) · vérif ✔
+2026-10-23 00:06:30 ok write css/print.css (57 lignes, nouveau) · vérif ✔
+2026-10-23 00:06:30 ok task done 13
+2026-10-23 00:06:30 ok build (rien à construire)
+2026-10-23 00:06:30 ok task start 14
+2026-10-23 00:06:30 ok write js/views/dashboard.js (131 lignes, nouveau) · vérif ✔
+2026-10-23 00:06:30 ok append css/app.css (+10 lignes) · vérif ✔
+2026-10-23 00:06:30 ok task done 14
+2026-10-23 00:06:30 ok build (rien à construire)
+2026-10-23 00:06:31 ok run node --check js/views/documents.js && node --check js/views/preview.js (code 0, 0,4 s)
+2026-10-23 00:06:32 ok task list (18)
+2026-10-23 00:06:51 ok task start 16
+2026-10-23 00:06:52 ok run node --check js/calc.js && node --check js/store.js && node --check js (code 0, 1,1 s)
+2026-10-23 00:06:52 ok run node tests/calc.test.js (code 0, 0,2 s)
+2026-10-23 00:06:56 err run npx --no-install playwright --version (code 1, 3,9 s)
+2026-10-23 00:06:57 ok task list (18)
+2026-10-23 00:07:23 ok tool pkg npm playwright-core (code 0, 2,7 s)
+2026-10-23 00:07:23 ok task list (18)
+2026-10-23 00:08:41 err run where msedge (code 1, 0,3 s)
+2026-10-23 00:08:41 ok task list (18)
+2026-10-23 00:09:50 ok write tests/e2e.js (184 lignes, nouveau) · vérif ✔
+2026-10-23 00:09:51 err run node --check tests/e2e.js && node tests/e2e.js (code 2, 0,8 s)
+2026-10-23 00:09:51 ok task list (18)
+2026-10-23 00:11:32 ok run npm install --no-save --no-package-lock playwright-core (code 0, 2,0 s)
+2026-10-23 00:11:44 ok run node tests/e2e.js (code 0, 11,4 s)
+2026-10-23 00:11:44 ok task list (18)
+2026-10-23 00:16:09 ok write README.md (44 lignes, nouveau)
+2026-10-23 00:16:09 ok write .gitignore (3 lignes, nouveau)
+2026-10-23 00:16:09 ok script node (2 lignes) (code 0, 0,2 s)
+2026-10-23 00:16:09 ok task done 16
+2026-10-23 00:16:09 ok build (rien à construire)
+2026-10-23 00:16:09 ok task start 17
+2026-10-23 00:16:09 ok task done 17
+2026-10-23 00:16:09 ok build (rien à construire)
+2026-10-23 00:16:09 ok task start 18
+2026-10-23 00:16:09 ok task done 18
+2026-10-23 00:16:09 ok build (rien à construire)
+2026-10-23 00:21:20 ok task list (18)
+2026-10-23 00:22:17 ok task add (6 tâches)
+2026-10-23 00:22:17 err grep Demo -n : ENOENT: no such file or directory, stat 'E:\Téléchargements\Main Folder\-n'
+2026-10-23 00:22:17 ok task list (24)
+2026-10-23 00:22:31 ok task start 19
+2026-10-23 00:22:31 ok task list (24)
+2026-10-23 00:23:17 ok write index.html (45 lignes, remplacé)
+2026-10-23 00:23:17 ok edit js/views/editor.js (2 modifications) · vérif ✔
+2026-10-23 00:23:17 ok edit js/views/clients.js (1 modification) · vérif ✔
+2026-10-23 00:23:17 ok edit js/views/preview.js (1 modification) · vérif ✔
+2026-10-23 00:23:17 ok edit js/views/settings.js (4 modifications) · vérif ✔
+2026-10-23 00:23:18 ok edit js/store.js (1 modification) · vérif ✔
+2026-10-23 00:23:18 ok edit js/views/dashboard.js (2 modifications) · vérif ✔
+2026-10-23 00:23:18 ok run node --check js/store.js && node --check js/views/dashboard.js && node (code 0, 0,8 s)
+2026-10-23 00:23:19 ok task done 19
+2026-10-23 00:23:19 ok build (rien à construire)
+2026-10-23 00:23:19 ok task done 20
+2026-10-23 00:23:19 ok build (rien à construire)
+2026-10-23 00:23:19 ok task start 21
+2026-10-23 00:23:20 ok task list (24)
+2026-10-23 00:23:35 ok task list (24)
+2026-10-23 00:23:35 ok task list (24)
+2026-10-23 00:24:21 ok write css/app.css (119 lignes, remplacé) · vérif ✔
+2026-10-23 00:25:21 err run node tests/e2e.js (délai dépassé, 60,2 s)
+2026-10-23 00:25:21 ok task list (24)
+2026-10-23 00:26:16 ok task done 21
+2026-10-23 00:26:16 ok build (rien à construire)
+2026-10-23 00:26:16 ok task list (24)
+2026-10-23 00:26:39 ok task list (24)
+2026-10-23 00:26:39 ok task list (24)
+2026-10-23 00:28:36 ok task start 22
+2026-10-23 00:28:36 ok write js/validate.js (125 lignes, nouveau) · vérif ✔
+2026-10-23 00:28:36 ok write js/api.js (217 lignes, nouveau) · vérif ✔
+2026-10-23 00:28:36 ok edit index.html (2 modifications)
+2026-10-23 00:28:36 ok run node --check js/validate.js && node --check js/api.js (code 0, 0,4 s)
+2026-10-23 00:28:37 err script node (23 lignes) (code 1, 0,2 s)
+2026-10-23 00:28:37 ok task list (24)
+2026-10-23 00:30:16 ok write tests/validate.test.js (25 lignes, nouveau) · vérif ✔
+2026-10-23 00:30:16 ok run node tests/validate.test.js (code 0, 0,2 s)
+2026-10-23 00:30:16 ok task done 22
+2026-10-23 00:30:16 ok build (rien à construire)
+2026-10-23 00:30:16 ok task start 23
+2026-10-23 00:30:16 ok write tests/securite.js (126 lignes, nouveau) · vérif ✔
+2026-10-23 00:30:21 err run node tests/securite.js (code 1, 4,4 s)
+2026-10-23 00:30:21 ok task list (24)
+2026-10-23 00:31:16 err grep eval\(|new Function|innerHTML|document\.write|setTimeout\([' : ENOENT: no such file or directory, stat 'E:\Téléchargements\Main Folder\Function|innerHTML|document\.write|setTimeout\(['"]'
+2026-10-23 00:31:16 err grep aria-label|placeholder|Pour commencer js/views -r : ENOENT: no such file or directory, stat 'E:\Téléchargements\Main Folder\commencer'
+2026-10-23 00:31:16 ok task list (24)
+2026-10-23 00:33:53 ok edit tests/securite.js (2 modifications) · vérif ✔
+2026-10-23 00:33:58 ok run node tests/securite.js (code 0, 4,9 s)
+2026-10-23 00:33:58 ok task done 23
+2026-10-23 00:33:58 ok build (rien à construire)
+2026-10-23 00:33:58 ok task start 24
+2026-10-23 00:33:58 ok write API.md (89 lignes, nouveau)
+2026-10-23 00:33:58 ok task list (24)
+2026-10-23 00:34:08 ok run node --check tests/e2e.js (code 0, 0,3 s)
+2026-10-23 00:34:08 ok task list (24)
+2026-10-23 00:34:16 ok task list (24)
+2026-10-23 00:36:37 err test node --test tests/e2e.js (code 1, 101,5 s)
+2026-10-23 00:36:37 ok task list (24)
+2026-10-23 00:36:52 ok task list (24)
+2026-10-23 00:37:38 ok edit tests/e2e.js (4 modifications) · vérif ✔
+2026-10-23 00:37:38 ok edit README.md (3 modifications)
+2026-10-23 00:37:38 ok run node --check tests/e2e.js (code 0, 0,2 s)
+2026-10-23 00:37:39 ok run node tests/calc.test.js (code 0, 0,4 s)
+2026-10-23 00:37:48 ok test node --test tests/e2e.js (code 0, 9,7 s)
+2026-10-23 00:37:53 ok run node tests/securite.js (code 0, 4,5 s)
+2026-10-23 00:37:53 ok task done 24
+2026-10-23 00:37:53 ok build (rien à construire)
+2026-10-23 00:39:01 ok task list (24)
+2026-10-23 00:40:01 err grep Demo|demo|reinitialiserDemo -r -n : ENOENT: no such file or directory, stat 'E:\Téléchargements\Main Folder\-n'
+2026-10-23 00:40:02 ok task list (24)
+2026-10-23 00:40:17 ok task list (24)
+2026-10-23 00:40:17 ok task list (24)
+2026-10-23 00:40:31 ok run node tests/calc.test.js (code 0, 0,2 s)
+2026-10-23 00:40:31 ok run node tests/validate.test.js (code 0, 0,2 s)
+2026-10-23 00:40:32 ok run node --check js/views/editor.js (code 0, 0,2 s)
+2026-10-23 00:40:32 ok run node --check js/views/documents.js (code 0, 0,2 s)
+2026-10-23 00:40:32 ok run node --check js/views/preview.js (code 0, 0,2 s)
+2026-10-23 00:40:32 ok run node --check js/views/dashboard.js (code 0, 0,2 s)
+2026-10-23 00:40:32 ok run node --check js/api.js (code 0, 0,2 s)
+2026-10-23 00:42:17 ok task list (24)
+2026-10-23 00:42:29 ok task list (24)
+2026-10-23 00:43:08 ok task list (24)
+2026-10-23 00:43:22 ok task list (24)
+2026-10-23 00:44:00 ok append css/app.css (+83 lignes) · vérif ✔
+2026-10-23 00:44:00 ok build (rien à construire)
+2026-10-23 00:44:42 ok task list (24)
+2026-10-23 00:45:11 ok edit js/store.js (1 modification) · vérif ✔
+2026-10-23 00:45:11 ok run node --check js/store.js (code 0, 0,2 s)
+2026-10-23 01:10:50 ok task list (24)
+2026-10-23 01:11:43 err grep siret -g *.js -i : ENOENT: no such file or directory, stat 'E:\Téléchargements\Main Folder\-i'
+2026-10-23 01:11:43 ok task list (24)
+2026-10-23 01:11:50 ok task list (24)
+2026-10-23 01:12:49 ok edit js/legal.js (1 modification) · vérif ✔
+2026-10-23 01:12:49 ok edit js/views/settings.js (1 modification) · vérif ✔
+2026-10-23 01:12:50 ok edit js/views/dashboard.js (2 modifications) · vérif ✔
+2026-10-23 01:12:50 ok run node --check js/legal.js (code 0, 0,2 s)
+2026-10-23 01:12:50 ok run node --check js/views/settings.js (code 0, 0,2 s)
+2026-10-23 01:12:50 ok run node --check js/views/dashboard.js (code 0, 0,2 s)
+2026-10-23 01:12:51 ok run node tests/calc.test.js (code 0, 0,2 s)
+2026-10-23 01:17:43 ok task list (24)
+2026-10-23 01:18:26 ok edit js/store.js (1 modification) · vérif ✔
+2026-10-23 01:18:26 ok run node --check js/store.js (code 0, 0,2 s)
+2026-10-23 01:18:27 ok task list (24)
+2026-10-23 01:18:41 ok edit js/views/clients.js (1 modification) · vérif ✔
+2026-10-23 01:18:41 ok run node --check js/views/clients.js (code 0, 0,2 s)
+2026-10-23 01:18:41 ok run node --check js/store.js (code 0, 0,2 s)
+2026-10-23 01:18:42 ok run node tests/calc.test.js (code 0, 0,3 s)
+2026-10-23 09:02:16 ok task list (24)
+2026-10-23 09:03:56 ok append .gitignore (+3 lignes)
+2026-10-23 09:03:57 ok run git init (code 0, 0,3 s)
+2026-10-23 09:03:57 ok run git branch -M main (code 0, 0,3 s)

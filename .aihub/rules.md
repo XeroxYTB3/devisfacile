@@ -1,0 +1,1 @@
+Va TOUJOURS a bout de TOUTES les taches que je t'ai donné et ne t'arrêtes JAMAIS au milieu de quelque chose.

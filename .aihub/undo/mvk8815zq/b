@@ -1,0 +1,220 @@
+'use strict';
+window.Views = window.Views || {};
+window.Views.settings = function () {
+  var h = UI.h;
+  var e = Object.assign({}, Store.entreprise());
+  var etat = h('span', { class: 'doux' }, '');
+  var sauver = UI.debounce(function () {
+    Store.sauverEntreprise(e);
+    etat.textContent = 'Modifications enregistrées ✓';
+  }, 500);
+  function change() { etat.textContent = 'Enregistrement…'; sauver(); }
+
+  function texte(cle, lib, aide, extra) {
+    var attrs = Object.assign({ type: 'text', value: e[cle] || '', oninput: function (ev) { e[cle] = ev.target.value; change(); } }, extra || {});
+    return UI.champ(lib, h('input', attrs), aide);
+  }
+  function nombre(cle, lib, aide, min, max, pas) {
+    return UI.champ(lib, h('input', {
+      type: 'number', inputmode: 'decimal', min: String(min), max: max == null ? null : String(max), step: String(pas || 1),
+      value: e[cle],
+      oninput: function (ev) {
+        var v = Number(String(ev.target.value).replace(',', '.'));
+        if (isFinite(v) && ev.target.value !== '') { e[cle] = v; change(); }
+      }
+    }), aide);
+  }
+
+  // ---- Identité
+  var aideSiret = h('span', { class: 'aide' });
+  function majSiret() {
+    var s = String(e.siret || '').replace(/\s/g, '');
+    aideSiret.textContent = !s ? 'Obligatoire sur vos devis et factures : 14 chiffres.'
+      : (/^\d{14}$/.test(s) ? 'SIRET valable (14 chiffres).' : 'Le SIRET doit comporter 14 chiffres.');
+  }
+  majSiret();
+  var champSiret = h('label', { class: 'champ' },
+    h('span', { class: 'etiquette' }, 'SIRET'),
+    h('input', { type: 'text', inputmode: 'numeric', value: e.siret || '', oninput: function (ev) { e.siret = ev.target.value; majSiret(); change(); } }),
+    aideSiret);
+
+  // ---- Logo
+  var zoneLogo = h('div', null);
+  function majLogo() {
+    UI.vider(zoneLogo);
+    if (e.logo) {
+      zoneLogo.appendChild(h('div', { style: 'display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:10px' },
+        h('img', { src: e.logo, alt: 'Votre logo', style: 'max-height:70px;max-width:220px;border:1px solid var(--bord);border-radius:8px;padding:6px;background:#fff' }),
+        h('button', { class: 'btn btn-petit btn-danger', type: 'button', onclick: function () { e.logo = ''; change(); majLogo(); } }, 'Retirer le logo')));
+    } else {
+      zoneLogo.appendChild(h('p', { class: 'doux' }, 'Aucun logo pour le moment. Il apparaîtra en haut de vos devis et factures.'));
+    }
+    zoneLogo.appendChild(UI.champ(e.logo ? 'Remplacer le logo' : 'Ajouter un logo',
+      h('input', { type: 'file', accept: 'image/*', onchange: function (ev) { chargerLogo(ev.target.files && ev.target.files[0]); ev.target.value = ''; } }),
+      'Image PNG, JPG ou SVG. Elle est réduite automatiquement et reste sur cet appareil.'));
+  }
+  function chargerLogo(f) {
+    if (!f) return;
+    if (!/^image\//.test(f.type)) { UI.toast('Ce fichier n’est pas une image.', 'err'); return; }
+    var lecteur = new FileReader();
+    lecteur.onerror = function () { UI.toast('Lecture du fichier impossible.', 'err'); };
+    lecteur.onload = function () {
+      var img = new Image();
+      img.onerror = function () { UI.toast('Cette image n’a pas pu être lue.', 'err'); };
+      img.onload = function () {
+        var w = img.naturalWidth || img.width || 300, hh = img.naturalHeight || img.height || 150;
+        var k = Math.min(1, 480 / w, 240 / hh);
+        var cv = document.createElement('canvas');
+        cv.width = Math.max(1, Math.round(w * k)); cv.height = Math.max(1, Math.round(hh * k));
+        var ctx = cv.getContext('2d');
+        ctx.drawImage(img, 0, 0, cv.width, cv.height);
+        var data = cv.toDataURL('image/png');
+        if (data.length > 350000) {
+          ctx.globalCompositeOperation = 'destination-over';
+          ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, cv.width, cv.height);
+          data = cv.toDataURL('image/jpeg', 0.85);
+        }
+        e.logo = data; change(); majLogo();
+        UI.toast('Logo ajouté.', 'ok');
+      };
+      img.src = lecteur.result;
+    };
+    lecteur.readAsDataURL(f);
+  }
+  majLogo();
+
+  // ---- TVA
+  var blocTva = h('div', { class: e.tvaStatut === 'assujetti' ? '' : 'cache' },
+    h('div', { class: 'grille-champs' },
+      texte('tvaNumero', 'Numéro de TVA intracommunautaire', 'Ex. : FR12345678901. Obligatoire sur vos factures si vous facturez la TVA.'),
+      nombre('tauxTvaDefaut', 'Taux de TVA par défaut (%)', 'Pour les nouvelles lignes : 20 % dans la plupart des cas.', 0, 100, 0.1)));
+  var blocFranchise = h('div', { class: 'alerte alerte-info' + (e.tvaStatut === 'assujetti' ? ' cache' : '') },
+    'Vos documents porteront la mention « TVA non applicable, art. 293 B du CGI » et aucune TVA ne sera ajoutée.');
+  var choixTva = h('select', {
+    onchange: function (ev) {
+      e.tvaStatut = ev.target.value;
+      blocTva.className = e.tvaStatut === 'assujetti' ? '' : 'cache';
+      blocFranchise.className = 'alerte alerte-info' + (e.tvaStatut === 'assujetti' ? ' cache' : '');
+      change();
+    }
+  },
+    h('option', { value: 'franchise', selected: e.tvaStatut !== 'assujetti' }, 'Non soumis à la TVA (micro-entrepreneur, franchise en base)'),
+    h('option', { value: 'assujetti', selected: e.tvaStatut === 'assujetti' }, 'Soumis à la TVA'));
+
+  // ---- Catalogue
+  var zoneCat = h('div', null);
+  function formPrestation(p) {
+    p = Object.assign({ description: '', unite: '', puHT: 0, tva: e.tvaStatut === 'assujetti' ? (e.tauxTvaDefaut || 20) : 0 }, p || {});
+    var d = h('input', { type: 'text', value: p.description });
+    var u = h('input', { type: 'text', value: p.unite, placeholder: 'Ex. : jour, heure, vidéo' });
+    var pu = h('input', { type: 'number', min: '0', step: '0.01', inputmode: 'decimal', value: p.puHT });
+    var tv = h('select', null);
+    var taux = [0, 5.5, 10, 20];
+    if (taux.indexOf(Number(p.tva)) < 0) taux.push(Number(p.tva));
+    taux.forEach(function (t) { tv.appendChild(h('option', { value: t, selected: Number(p.tva) === t }, String(t).replace('.', ',') + ' %')); });
+    var m;
+    var contenu = h('div', null,
+      UI.champ('Description', d), UI.champ('Unité', u), UI.champ('Prix unitaire HT (€)', pu), UI.champ('TVA', tv),
+      h('div', { class: 'pied' },
+        h('button', { class: 'btn', type: 'button', onclick: function () { m.fermer(); } }, 'Annuler'),
+        h('button', { class: 'btn btn-primaire', type: 'button', onclick: function () {
+          if (!d.value.trim()) { UI.toast('Indiquez la description de la prestation.', 'err'); d.focus(); return; }
+          Store.sauverPrestation({ id: p.id, description: d.value.trim(), unite: u.value.trim(), puHT: Math.max(0, Number(String(pu.value).replace(',', '.')) || 0), tva: Number(tv.value) });
+          m.fermer(); majCatalogue(); UI.toast('Prestation enregistrée.', 'ok');
+        } }, 'Enregistrer')));
+    m = UI.modale(p.id ? 'Modifier la prestation' : 'Nouvelle prestation', contenu);
+  }
+  function majCatalogue() {
+    UI.vider(zoneCat);
+    var liste = Store.catalogue();
+    if (!liste.length) {
+      zoneCat.appendChild(UI.vide('Aucune prestation enregistrée', 'Ajoutez vos prestations habituelles pour les insérer en un clic dans vos devis.'));
+      return;
+    }
+    var corps = h('tbody', null);
+    liste.forEach(function (p) {
+      corps.appendChild(h('tr', null,
+        h('td', null, p.description),
+        h('td', null, p.unite || '—'),
+        h('td', { class: 'num' }, UI.eur(Calc.versCentimes(p.puHT))),
+        h('td', { class: 'num' }, String(p.tva).replace('.', ',') + ' %'),
+        h('td', { class: 'droite' },
+          h('button', { class: 'btn btn-petit', type: 'button', onclick: function () { formPrestation(p); } }, 'Modifier'), ' ',
+          h('button', { class: 'btn btn-petit btn-danger', type: 'button', onclick: function () {
+            UI.confirmer('Supprimer cette prestation ?', 'Elle disparaîtra du catalogue. Vos documents existants ne changent pas.', 'Supprimer', true).then(function (ok) {
+              if (ok) { Store.supprimerPrestation(p.id); majCatalogue(); }
+            });
+          } }, 'Supprimer'))));
+    });
+    zoneCat.appendChild(h('div', { class: 'defile' }, h('table', { class: 'tableau' },
+      h('thead', null, h('tr', null, h('th', null, 'Description'), h('th', null, 'Unité'), h('th', { class: 'droite' }, 'Prix HT'), h('th', { class: 'droite' }, 'TVA'), h('th', null, ''))),
+      corps)));
+  }
+  majCatalogue();
+
+  // ---- Sauvegarde
+  function importer(f) {
+    if (!f) return;
+    var l = new FileReader();
+    l.onerror = function () { UI.toast('Lecture du fichier impossible.', 'err'); };
+    l.onload = function () {
+      UI.confirmer('Restaurer cette sauvegarde ?', 'Toutes les données actuelles seront remplacées par celles du fichier.', 'Restaurer', true).then(function (ok) {
+        if (!ok) return;
+        var r = Store.importer(String(l.result));
+        if (!r.ok) { UI.toast(r.message, 'err'); return; }
+        UI.toast('Sauvegarde restaurée.', 'ok');
+        App.render();
+      });
+    };
+    l.readAsText(f);
+  }
+
+  return h('div', null,
+    h('div', { class: 'barre' }, h('h1', null, 'Réglages'), etat),
+    h('div', { class: 'alerte alerte-info' }, 'Renseignez ces informations une seule fois : elles sont reprises automatiquement sur tous vos devis et factures. DevisFacile vous aide à respecter les mentions obligatoires, mais ne remplace pas l’avis d’un comptable.'),
+    h('div', { class: 'carte' }, h('h2', null, 'Votre entreprise'),
+      h('div', { class: 'grille-champs' },
+        texte('nom', 'Nom ou raison sociale', 'Ex. : Shubham Sharma'),
+        texte('forme', 'Forme juridique', 'Ex. : Micro-entrepreneur, EURL, SASU'),
+        champSiret,
+        texte('adresse', 'Adresse'),
+        texte('cp', 'Code postal', null, { inputmode: 'numeric' }),
+        texte('ville', 'Ville'),
+        texte('email', 'Adresse e-mail', null, { type: 'email' }),
+        texte('tel', 'Téléphone', null, { type: 'tel' }),
+        texte('mentionRCS', 'Mention RCS ou RM (facultatif)', 'Ex. : Dispensé d’immatriculation au RCS et au RM'),
+        texte('assurance', 'Assurance professionnelle (facultatif)', 'Nom de l’assureur et zone de couverture')),
+      h('h3', null, 'Logo'), zoneLogo),
+    h('div', { class: 'carte' }, h('h2', null, 'TVA'),
+      UI.champ('Votre situation vis-à-vis de la TVA', choixTva), blocFranchise, blocTva),
+    h('div', { class: 'carte' }, h('h2', null, 'Paiement et délais'),
+      h('div', { class: 'grille-champs' },
+        nombre('delaiPaiementJours', 'Délai de paiement (jours)', 'Calcule la date d’échéance de vos factures.', 0, 60, 1),
+        nombre('validiteDevisJours', 'Durée de validité d’un devis (jours)', null, 1, 365, 1),
+        texte('iban', 'IBAN', 'Affiché sur vos factures pour le virement.'),
+        texte('bic', 'BIC'),
+        nombre('plafondCA', 'Plafond de chiffre d’affaires annuel (€)', 'Sert au tableau de bord. 77 700 € pour les prestations de services en micro-entreprise.', 0, null, 100))),
+    h('div', { class: 'carte' },
+      h('div', { class: 'barre', style: 'margin-bottom:8px' }, h('h2', { style: 'margin:0' }, 'Catalogue de prestations'),
+        h('button', { class: 'btn btn-primaire btn-petit', type: 'button', onclick: function () { formPrestation(); } }, '+ Ajouter une prestation')),
+      zoneCat),
+    h('div', { class: 'carte' }, h('h2', null, 'Sauvegarde de vos données'),
+      h('p', { class: 'doux' }, 'Vos données sont enregistrées dans ce navigateur. Téléchargez régulièrement une sauvegarde pour les conserver en lieu sûr ou les transférer sur un autre appareil.'),
+      h('div', { class: 'actions', style: 'display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px' },
+        h('button', { class: 'btn btn-primaire', type: 'button', onclick: function () {
+          UI.telecharger('devisfacile-sauvegarde-' + Calc.aujourdhui() + '.json', Store.exporter(), 'application/json');
+          UI.toast('Sauvegarde téléchargée.', 'ok');
+        } }, 'Télécharger une sauvegarde'),
+        h('button', { class: 'btn', type: 'button', onclick: function () {
+          UI.confirmer('Recharger les données de démonstration ?', 'Toutes vos données actuelles seront remplacées par l’exemple de démonstration.', 'Remplacer', true).then(function (ok) {
+            if (ok) { Store.reinitialiserDemo(); UI.toast('Données de démonstration rechargées.', 'ok'); App.render(); }
+          });
+        } }, 'Recharger la démonstration'),
+        h('button', { class: 'btn btn-danger', type: 'button', onclick: function () {
+          UI.confirmer('Tout effacer ?', 'Clients, devis, factures et réglages seront définitivement supprimés de cet appareil. Pensez à télécharger une sauvegarde avant.', 'Tout effacer', true).then(function (ok) {
+            if (ok) { Store.toutEffacer(); UI.toast('Toutes les données ont été effacées.', 'ok'); App.render(); }
+          });
+        } }, 'Tout effacer')),
+      UI.champ('Restaurer une sauvegarde', h('input', { type: 'file', accept: '.json,application/json', onchange: function (ev) { importer(ev.target.files && ev.target.files[0]); ev.target.value = ''; } }),
+        'Choisissez un fichier téléchargé précédemment depuis DevisFacile.')));
+};

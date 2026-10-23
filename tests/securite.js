@@ -1,0 +1,126 @@
+'use strict';
+// Sécurité dans un vrai navigateur : node tests/securite.js
+const path = require('path'), cp = require('child_process');
+let pw;
+try { pw = require('playwright-core'); } catch (e) {
+  const cands = [];
+  try { cands.push(cp.execSync('npm root -g').toString().trim()); } catch (x) {}
+  cands.push(path.join(process.env.APPDATA || '', 'npm', 'node_modules'));
+  cands.push(path.join(process.cwd(), 'node_modules'));
+  for (const c of cands) { try { pw = require(path.join(c, 'playwright-core')); break; } catch (x) {} }
+  if (!pw) { console.log('KO playwright-core introuvable'); process.exit(2); }
+}
+let ko = 0;
+function ok(nom, cond, detail) { if (!cond) ko++; console.log((cond ? 'OK ' : 'KO ') + nom + (cond || !detail ? '' : ' → ' + detail)); }
+
+(async () => {
+  const base = require('url').pathToFileURL(path.resolve('index.html')).href;
+  let browser = null;
+  for (const channel of ['msedge', 'chrome']) {
+    try { browser = await pw.chromium.launch({ channel, headless: true }); break; } catch (e) {}
+  }
+  if (!browser) { console.log('KO aucun navigateur Edge/Chrome lancé'); process.exit(2); }
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: 'fr-FR' });
+  const page = await ctx.newPage();
+  const erreursJs = [];
+  let boite = 0;
+  page.on('pageerror', e => erreursJs.push(e.message));
+  page.on('dialog', d => { boite++; d.dismiss(); });
+
+  await page.goto(base + '#/tableau');
+  await page.waitForTimeout(200);
+
+  const P1 = '<img src=x onerror="window.__xss=1">';
+  const P2 = '"><script>window.__xss=1<\/script>';
+  const P3 = '<svg onload="window.__xss=1">';
+  const auj = new Date().toISOString().slice(0, 10);
+  await page.evaluate(([p1, p2, p3, auj]) => {
+    const etat = {
+      version: 1,
+      entreprise: { nom: p1, forme: p3, adresse: p2, cp: '75001', ville: 'Paris', siret: '83912345600021', email: 'a@b.fr', tel: '', logo: '', tvaStatut: 'franchise', tvaNumero: '', iban: '', bic: '', delaiPaiementJours: 30, validiteDevisJours: 30, tauxTvaDefaut: 20, mentionRCS: p1, assurance: p2, plafondCA: 77700 },
+      clients: [{ id: 'c1', nom: p1, contact: p2, email: 'x@y.fr', adresse: p3, cp: '75001', ville: p1, siret: '', tvaNumero: '', notes: p2 }],
+      catalogue: [{ id: 'p1', description: p1, unite: p3, puHT: 10, tva: 0 }],
+      documents: [{ id: 'd1', type: 'devis', numero: 'D-2026-001', statut: 'envoyé', clientId: 'c1', dateEmission: auj, dateValidite: auj, objet: p1, lignes: [{ id: 'l1', description: p2, qte: 1, unite: p3, puHT: 100, remisePct: 0, tva: 0 }], remiseGlobalePct: 0, acomptePct: null, acompteMontant: null, notes: p1, delaiExecution: p2, creeLe: new Date().toISOString() }],
+      compteurs: { devis: { '2026': 1 }, facture: {} }
+    };
+    localStorage.setItem('devisfacile.v1', JSON.stringify(etat));
+  }, [P1, P2, P3, auj]);
+
+  for (const h of ['#/tableau', '#/documents', '#/clients', '#/reglages', '#/document/d1', '#/apercu/d1']) {
+    await page.goto(base + h);
+    await page.reload();
+    await page.waitForTimeout(250);
+    const r = await page.evaluate(() => ({
+      xss: window.__xss === 1,
+      onerr: document.querySelectorAll('[onerror],[onload],[onclick][onclick*="__xss"]').length,
+      scripts: document.querySelectorAll('script:not([src])').length,
+      texteLitteral: document.body.innerText.indexOf('onerror') >= 0 || document.body.innerText.indexOf('<img') >= 0
+    }));
+    ok('XSS neutralisé sur ' + h + ' (aucun script exécuté, aucune balise injectée)', !r.xss && r.onerr === 0 && r.scripts === 0);
+    ok('le texte piégé s’affiche comme du texte sur ' + h, r.texteLitteral || h === '#/tableau' || h === '#/reglages', 'texte non affiché');
+  }
+  ok('aucune boîte de dialogue ouverte par une injection', boite === 0, String(boite));
+
+  const imp = await page.evaluate(() => {
+    const out = {};
+    const bon = JSON.parse(Store.exporter());
+    out.valide = Store.importer(JSON.stringify(bon)).ok;
+    const mauvais = JSON.parse(JSON.stringify(bon)); mauvais.entreprise.logo = 'javascript:alert(1)';
+    out.logoJs = Store.importer(JSON.stringify(mauvais)).ok;
+    const statut = JSON.parse(JSON.stringify(bon)); statut.documents[0].statut = 'pirate';
+    out.statut = Store.importer(JSON.stringify(statut)).ok;
+    out.proto = Store.importer('{"__proto__":{"polluted":1},"entreprise":{},"clients":[],"documents":[]}').ok;
+    out.pollue = ({}).polluted === 1;
+    out.gros = Store.importer('x'.repeat(6 * 1024 * 1024)).ok;
+    out.json = Store.importer('pas du json').ok;
+    return out;
+  });
+  ok('import d’une sauvegarde valable accepté', imp.valide === true);
+  ok('import avec logo javascript: refusé', imp.logoJs === false);
+  ok('import avec statut inconnu refusé', imp.statut === false);
+  ok('import avec __proto__ refusé et aucune pollution', imp.proto === false && imp.pollue === false);
+  ok('import trop volumineux refusé', imp.gros === false);
+  ok('import qui n’est pas du JSON refusé', imp.json === false);
+
+  const api = await page.evaluate(() => {
+    const o = {};
+    o.expose = typeof window.DevisFacile === 'object' && typeof DevisFacile.documents === 'function';
+    o.lecture = DevisFacile.documents().length >= 1 && typeof DevisFacile.documents()[0].montants.totalTTC === 'number';
+    try { DevisFacile.ecriture.creerClient('nimporte', { nom: 'X' }); o.ecritureDefaut = 'autorisée'; } catch (e) { o.ecritureDefaut = 'refusée'; }
+    const avant = DevisFacile.clients().length;
+    DevisFacile.clients().push({ id: 'zz' });
+    o.copie = DevisFacile.clients().length === avant;
+    try { window.DevisFacile = {}; } catch (e) {}
+    o.gele = typeof DevisFacile.documents === 'function';
+    try { DevisFacile.ecriture.creerClient = function () {}; } catch (e) {}
+    o.geleEcriture = Object.isFrozen(DevisFacile.ecriture) && Object.isFrozen(DevisFacile);
+    localStorage.setItem('devisfacile.api', JSON.stringify({ ecriture: true, cle: 'cle-de-test-123' }));
+    try { DevisFacile.ecriture.creerClient('mauvaise', { nom: 'X' }); o.mauvaiseCle = 'autorisée'; } catch (e) { o.mauvaiseCle = 'refusée'; }
+    try { o.bonneCle = DevisFacile.ecriture.creerClient('cle-de-test-123', { nom: 'Client API' }).nom; } catch (e) { o.bonneCle = 'erreur : ' + e.message; }
+    try { DevisFacile.ecriture.creerClient('cle-de-test-123', { nom: 'x'.repeat(301) }); o.long = 'accepté'; } catch (e) { o.long = 'refusé'; }
+    try { DevisFacile.ecriture.creerDevis('cle-de-test-123', { clientId: 'c1', lignes: [{ description: 'a', qte: 'abc', puHT: 1 }] }); o.qteMauvaise = 'acceptée'; } catch (e) { o.qteMauvaise = 'refusée'; }
+    try { const d = DevisFacile.ecriture.creerDevis('cle-de-test-123', { clientId: 'c1', objet: 'API', lignes: [{ description: 'Prestation', qte: 2, puHT: 100, remisePct: 10 }] }); o.devisApi = d.montants.totalHT + '/' + d.numero + '/' + d.statut; } catch (e) { o.devisApi = 'erreur : ' + e.message; }
+    return o;
+  });
+  ok('API exposée en lecture', api.expose && api.lecture);
+  ok('écriture refusée par défaut', api.ecritureDefaut === 'refusée', api.ecritureDefaut);
+  ok('l’API renvoie des copies (modifier le résultat ne modifie rien)', api.copie);
+  ok('l’objet API est gelé et non remplaçable', api.gele && api.geleEcriture);
+  ok('mauvaise clé refusée', api.mauvaiseCle === 'refusée', api.mauvaiseCle);
+  ok('bonne clé : client créé', api.bonneCle === 'Client API', api.bonneCle);
+  ok('valeur trop longue refusée', api.long === 'refusé', api.long);
+  ok('quantité invalide refusée', api.qteMauvaise === 'refusée', api.qteMauvaise);
+  ok('devis créé par l’API : 18000 centimes HT, brouillon non numéroté', api.devisApi === '18000//brouillon', api.devisApi);
+
+  const csp = await page.evaluate(() => { const m = document.querySelector('meta[http-equiv="Content-Security-Policy"]'); return m ? m.content : ''; });
+  ok('politique de sécurité (CSP) présente et stricte', /default-src 'none'/.test(csp) && /script-src 'self'/.test(csp) && !/unsafe-eval/.test(csp) && /connect-src 'none'/.test(csp), csp);
+  const evalBloque = await page.evaluate(() => { const s = document.createElement('script'); s.textContent = 'window.__inline = 1'; document.body.appendChild(s); return window.__inline === 1 ? 'autorisé' : 'bloqué'; });
+  ok('script inline injecté dans la page bloqué par la CSP', evalBloque === 'bloqué', evalBloque);
+  const reseau = await page.evaluate(() => fetch('https://example.com').then(() => 'ouvert', () => 'bloqué'));
+  ok('aucune requête réseau sortante possible', reseau === 'bloqué', reseau);
+  ok('aucune erreur JavaScript imprévue', erreursJs.length === 0, erreursJs.slice(0, 3).join(' ; '));
+
+  await browser.close();
+  console.log(ko ? '\n' + ko + ' vérification(s) en échec' : '\nToutes les vérifications réussies');
+  process.exit(ko ? 1 : 0);
+})();

@@ -1,0 +1,135 @@
+'use strict';
+window.Views = window.Views || {};
+window.Views.clients = function (p) {
+  var h = UI.h;
+  var id = p && p.id ? p.id : '';
+  if (id) return ficheClient(id);
+  return listeClients();
+
+  function formClient(c, apres) {
+    c = c || {};
+    var champs = {};
+    function f(cle, lib, extra) {
+      champs[cle] = h('input', Object.assign({ type: 'text', value: c[cle] || '' }, extra || {}));
+      return UI.champ(lib, champs[cle]);
+    }
+    champs.notes = h('textarea', null);
+    champs.notes.value = c.notes || '';
+    var m;
+    var contenu = h('div', null,
+      f('nom', 'Nom du client ou de la société *'),
+      f('contact', 'Personne à contacter'),
+      f('email', 'Adresse e-mail', { type: 'email' }),
+      f('adresse', 'Adresse'),
+      h('div', { class: 'grille-champs' }, f('cp', 'Code postal', { inputmode: 'numeric' }), f('ville', 'Ville')),
+      f('siret', 'SIRET (si le client est une entreprise)', { inputmode: 'numeric' }),
+      f('tvaNumero', 'Numéro de TVA du client (facultatif)'),
+      UI.champ('Notes personnelles', champs.notes),
+      h('div', { class: 'pied' },
+        h('button', { class: 'btn', type: 'button', onclick: function () { m.fermer(); } }, 'Annuler'),
+        h('button', { class: 'btn btn-primaire', type: 'button', onclick: function () {
+          if (!champs.nom.value.trim()) { UI.toast('Indiquez le nom du client.', 'err'); champs.nom.focus(); return; }
+          var o = Object.assign({}, c);
+          ['nom', 'contact', 'email', 'adresse', 'cp', 'ville', 'siret', 'tvaNumero', 'notes'].forEach(function (k) { o[k] = champs[k].value.trim(); });
+          var s = Store.sauverClient(o);
+          m.fermer();
+          UI.toast('Client enregistré.', 'ok');
+          if (apres) apres(s);
+        } }, 'Enregistrer')));
+    m = UI.modale(c.id ? 'Modifier le client' : 'Nouveau client', contenu);
+  }
+
+  function listeClients() {
+    var q = '';
+    var zone = h('div', { class: 'carte' });
+    function maj() {
+      UI.vider(zone);
+      var tous = Store.clients();
+      var norm = function (s) { return UI.slug(s).replace(/-/g, ' '); };
+      var cherche = norm(q);
+      var liste = tous.filter(function (c) {
+        return !cherche || norm([c.nom, c.contact, c.email, c.ville].join(' ')).indexOf(cherche) >= 0;
+      });
+      if (!tous.length) {
+        zone.appendChild(UI.vide('Aucun client pour le moment', 'Ajoutez votre premier client pour pouvoir lui adresser un devis.',
+          h('button', { class: 'btn btn-primaire', type: 'button', onclick: function () { formClient(null, function (s) { App.aller('#/clients/' + encodeURIComponent(s.id)); }); } }, '+ Ajouter un client')));
+        return;
+      }
+      if (!liste.length) { zone.appendChild(UI.vide('Aucun résultat', 'Aucun client ne correspond à votre recherche.')); return; }
+      var corps = h('tbody', null);
+      liste.forEach(function (c) {
+        var docs = Store.documents().filter(function (d) { return d.clientId === c.id; }).length;
+        corps.appendChild(h('tr', { class: 'cliquable', onclick: function () { App.aller('#/clients/' + encodeURIComponent(c.id)); } },
+          h('td', { class: 'gras' }, c.nom),
+          h('td', null, c.contact || '—'),
+          h('td', null, c.email || '—'),
+          h('td', null, c.ville || '—'),
+          h('td', { class: 'num' }, String(docs))));
+      });
+      zone.appendChild(h('div', { class: 'defile' }, h('table', { class: 'tableau' },
+        h('thead', null, h('tr', null, h('th', null, 'Client'), h('th', null, 'Contact'), h('th', null, 'E-mail'), h('th', null, 'Ville'), h('th', { class: 'droite' }, 'Documents'))),
+        corps)));
+    }
+    maj();
+    return h('div', null,
+      h('div', { class: 'barre' }, h('h1', null, 'Clients'),
+        h('div', { class: 'actions' },
+          h('button', { class: 'btn btn-primaire', type: 'button', onclick: function () { formClient(null, function (s) { App.aller('#/clients/' + encodeURIComponent(s.id)); }); } }, '+ Nouveau client'))),
+      h('div', { class: 'champ' }, h('input', { type: 'search', placeholder: 'Rechercher un client…', 'aria-label': 'Rechercher un client', oninput: function (ev) { q = ev.target.value; maj(); } })),
+      zone);
+  }
+
+  function ficheClient(cid) {
+    var c = Store.client(cid);
+    if (!c) {
+      return h('div', { class: 'carte' }, UI.vide('Client introuvable', 'Ce client n’existe plus.',
+        h('a', { class: 'btn btn-primaire', href: '#/clients' }, 'Retour aux clients')));
+    }
+    var ent = Store.entreprise();
+    var aujourdhui = Calc.aujourdhui();
+    var docs = Store.documentsTries().filter(function (d) { return d.clientId === c.id; });
+    function ligneInfo(lib, val) {
+      return val ? h('div', { style: 'display:flex;gap:10px;padding:3px 0' }, h('span', { class: 'doux', style: 'min-width:120px' }, lib), h('span', null, val)) : null;
+    }
+    var adr = [c.adresse, [c.cp, c.ville].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+    var zoneDocs;
+    if (!docs.length) {
+      zoneDocs = UI.vide('Aucun document pour ce client', 'Créez un devis en un clic.');
+    } else {
+      var corps = h('tbody', null);
+      docs.forEach(function (d) {
+        var t = Calc.totaux(d, ent);
+        corps.appendChild(h('tr', { class: 'cliquable', onclick: function () { App.aller('#/document/' + encodeURIComponent(d.id)); } },
+          h('td', null, d.type === 'devis' ? 'Devis' : 'Facture'),
+          h('td', { class: 'gras' }, d.numero || 'Brouillon'),
+          h('td', null, d.objet || '—'),
+          h('td', null, UI.date(d.dateEmission)),
+          h('td', null, UI.pastille(Calc.statutAffiche(d, aujourdhui))),
+          h('td', { class: 'num' }, UI.eur(t.totalTTC))));
+      });
+      zoneDocs = h('div', { class: 'defile' }, h('table', { class: 'tableau' },
+        h('thead', null, h('tr', null, h('th', null, 'Type'), h('th', null, 'Numéro'), h('th', null, 'Objet'), h('th', null, 'Date'), h('th', null, 'Statut'), h('th', { class: 'droite' }, 'Total TTC'))),
+        corps));
+    }
+    return h('div', null,
+      h('p', null, h('a', { href: '#/clients' }, '← Tous les clients')),
+      h('div', { class: 'barre' }, h('h1', null, c.nom),
+        h('div', { class: 'actions' },
+          h('button', { class: 'btn btn-primaire', type: 'button', onclick: function () { App.nouveauDevis(c.id); } }, '+ Nouveau devis'),
+          h('button', { class: 'btn', type: 'button', onclick: function () { formClient(c, function () { App.render(); }); } }, 'Modifier'),
+          h('button', { class: 'btn btn-danger', type: 'button', onclick: function () {
+            UI.confirmer('Supprimer ce client ?', 'Cette action est définitive. Un client lié à des documents ne peut pas être supprimé.', 'Supprimer', true).then(function (ok) {
+              if (!ok) return;
+              var r = Store.supprimerClient(c.id);
+              if (!r.ok) { UI.toast(r.message, 'err'); return; }
+              UI.toast('Client supprimé.', 'ok');
+              App.aller('#/clients');
+            });
+          } }, 'Supprimer'))),
+      h('div', { class: 'carte' }, h('h2', null, 'Coordonnées'),
+        ligneInfo('Contact', c.contact), ligneInfo('E-mail', c.email), ligneInfo('Adresse', adr),
+        ligneInfo('SIRET', c.siret), ligneInfo('N° de TVA', c.tvaNumero), ligneInfo('Notes', c.notes),
+        (!c.contact && !c.email && !adr && !c.siret && !c.tvaNumero && !c.notes) ? h('p', { class: 'doux' }, 'Aucune information complémentaire. Cliquez sur « Modifier » pour en ajouter.') : null),
+      h('div', { class: 'carte' }, h('h2', null, 'Documents'), zoneDocs));
+  }
+};
