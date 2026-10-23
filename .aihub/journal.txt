@@ -238,3 +238,8 @@
 2026-10-23 09:03:56 ok append .gitignore (+3 lignes)
 2026-10-23 09:03:57 ok run git init (code 0, 0,3 s)
 2026-10-23 09:03:57 ok run git branch -M main (code 0, 0,3 s)
+2026-10-23 09:03:57 ok run git add -A (code 0, 0,5 s)
+2026-10-23 09:03:58 ok run git -c user.name=XeroxYTB3 -c user.email=XeroxYTB3@users.noreply.githu (code 0, 0,5 s)
+2026-10-23 09:04:07 ok run gh repo create devisfacile --public --source=. --remote=origin --push (code 0, 8,7 s)
+2026-10-23 09:04:08 ok run gh api -X POST repos/XeroxYTB3/devisfacile/pages -f "source[branch]=ma (code 0, 1,6 s)
+2026-10-23 09:16:52 ok task list (24)
